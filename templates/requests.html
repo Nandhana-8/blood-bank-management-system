@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+
+{% block title %}Blood Requests - Blood Bank Management System{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+  <div>
+    <h2 class="fw-bold mb-1 text-slate-900">
+      <i class="fa-solid fa-truck-medical text-primary me-2"></i>Blood Requisition Management
+    </h2>
+    <p class="text-muted mb-0">Track patient requisitions &bull; Safe stock decrement on fulfillment via MySQL Trigger <code>trg_before_blood_request_update</code></p>
+  </div>
+  <div>
+    <button class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#modalAddRequest">
+      <i class="fa-solid fa-plus me-1"></i> New Blood Requisition
+    </button>
+  </div>
+</div>
+
+<!-- Request Metrics Strip -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm p-3 text-center">
+      <div class="small text-muted text-uppercase fw-semibold">Pending Requests</div>
+      <div class="fs-2 fw-bold text-warning">
+        {{ requests|selectattr('status', 'equalto', 'Pending')|list|length }}
+      </div>
+      <div class="small text-muted">Awaiting fulfillment</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm p-3 text-center">
+      <div class="small text-muted text-uppercase fw-semibold">Approved</div>
+      <div class="fs-2 fw-bold text-info">
+        {{ requests|selectattr('status', 'equalto', 'Approved')|list|length }}
+      </div>
+      <div class="small text-muted">Cleared for dispatch</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm p-3 text-center">
+      <div class="small text-muted text-uppercase fw-semibold">Fulfilled</div>
+      <div class="fs-2 fw-bold text-success">
+        {{ requests|selectattr('status', 'equalto', 'Fulfilled')|list|length }}
+      </div>
+      <div class="small text-muted">Stock deducted & delivered</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm p-3 text-center">
+      <div class="small text-muted text-uppercase fw-semibold">Total Logged</div>
+      <div class="fs-2 fw-bold text-slate-900">{{ requests|length }}</div>
+      <div class="small text-muted">Hospital requisitions</div>
+    </div>
+  </div>
+</div>
+
+<!-- Search & Filter Card -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body p-3">
+    <form method="GET" action="{{ url_for('requests_page') }}" class="row g-2 align-items-center">
+      <div class="col-md-4">
+        <div class="input-group">
+          <span class="input-group-text bg-white border-end-0 text-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
+          <input type="text" name="search" class="form-control border-start-0" placeholder="Search by patient, hospital, reason..." value="{{ search_query }}">
+        </div>
+      </div>
+      <div class="col-md-3">
+        <select name="status" class="form-select">
+          <option value="">All Statuses</option>
+          <option value="Pending" {% if status_filter == 'Pending' %}selected{% endif %}>Pending</option>
+          <option value="Approved" {% if status_filter == 'Approved' %}selected{% endif %}>Approved</option>
+          <option value="Fulfilled" {% if status_filter == 'Fulfilled' %}selected{% endif %}>Fulfilled</option>
+          <option value="Rejected" {% if status_filter == 'Rejected' %}selected{% endif %}>Rejected</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <select name="group" class="form-select">
+          <option value="">All Groups</option>
+          {% for bg in blood_groups %}
+          <option value="{{ bg.blood_group_name }}" {% if group_filter == bg.blood_group_name %}selected{% endif %}>
+            {{ bg.blood_group_name }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3 d-flex gap-2">
+        <button type="submit" class="btn btn-primary flex-grow-1">
+          <i class="fa-solid fa-filter me-1"></i> Filter
+        </button>
+        {% if search_query or status_filter or group_filter %}
+        <a href="{{ url_for('requests_page') }}" class="btn btn-outline-secondary" title="Reset Filters">
+          <i class="fa-solid fa-rotate-left"></i>
+        </a>
+        {% endif %}
+        <button type="button" class="btn btn-outline-success" onclick="exportTableToCSV('requests-table', 'blood_requests.csv')">
+          <i class="fa-solid fa-file-csv me-1"></i> Export
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Blood Requests Data Table -->
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+    <h5 class="mb-0 fw-bold text-slate-900">
+      <i class="fa-solid fa-notes-medical text-primary me-2"></i>Hospital Requisitions Registry
+      <span class="badge bg-secondary rounded-pill ms-1">{{ requests|length }}</span>
+    </h5>
+    <small class="text-muted">Live MySQL Table: <code>blood_requests</code> & View: <code>blood_requests_view</code></small>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0" id="requests-table">
+      <thead class="table-light">
+        <tr>
+          <th style="width: 70px;">ID</th>
+          <th>Patient & Diagnosis</th>
+          <th>Hospital Center</th>
+          <th>Blood Group</th>
+          <th>Units Needed</th>
+          <th>Stock In Hand</th>
+          <th>Request Date</th>
+          <th>Status</th>
+          <th class="text-center" style="width: 200px;">Manage Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in requests %}
+        <tr>
+          <td><strong>#{{ r.request_id }}</strong></td>
+          <td>
+            <div class="fw-bold text-dark">{{ r.patient_name }}</div>
+            <small class="text-muted text-truncate d-inline-block" style="max-width: 180px;" title="{{ r.reason or 'Clinical procedure' }}">
+              {{ r.reason or 'Clinical procedure' }}
+            </small>
+          </td>
+          <td>
+            <div class="fw-semibold text-secondary"><i class="fa-solid fa-hospital me-1 small"></i>{{ r.hospital_name }}</div>
+          </td>
+          <td>
+            <span class="badge bg-danger rounded-pill px-3 py-1 fs-6">{{ r.blood_group_name }}</span>
+          </td>
+          <td>
+            <strong class="fs-6">{{ r.units_requested }}</strong> <small class="text-muted">units</small>
+          </td>
+          <td>
+            {% if r.current_stock_available >= r.units_requested %}
+              <span class="badge bg-success-subtle text-success-emphasis rounded-pill" title="Sufficient stock exists in blood_stock">
+                {{ r.current_stock_available }} units available
+              </span>
+            {% else %}
+              <span class="badge bg-danger-subtle text-danger-emphasis rounded-pill" title="Insufficient stock! Fulfillment will be blocked by MySQL trigger">
+                Only {{ r.current_stock_available }} available
+              </span>
+            {% endif %}
+          </td>
+          <td><small class="text-muted">{{ r.request_date }}</small></td>
+          <td>
+            {% if r.status == 'Fulfilled' %}
+              <span class="badge bg-success rounded-pill px-3 py-1"><i class="fa-solid fa-circle-check me-1"></i>Fulfilled</span>
+              {% if r.fulfilled_date %}
+                <div><small class="text-muted" style="font-size: 0.75rem;">on {{ r.fulfilled_date }}</small></div>
+              {% endif %}
+            {% elif r.status == 'Approved' %}
+              <span class="badge bg-info text-dark rounded-pill px-3 py-1"><i class="fa-solid fa-thumbs-up me-1"></i>Approved</span>
+            {% elif r.status == 'Rejected' %}
+              <span class="badge bg-secondary rounded-pill px-3 py-1"><i class="fa-solid fa-ban me-1"></i>Rejected</span>
+            {% else %}
+              <span class="badge bg-warning text-dark rounded-pill px-3 py-1"><i class="fa-solid fa-clock me-1"></i>Pending</span>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            {% if r.status == 'Fulfilled' %}
+              <span class="text-success small fw-semibold"><i class="fa-solid fa-check-double me-1"></i>Completed</span>
+            {% else %}
+              <div class="d-flex justify-content-center gap-1">
+                <!-- Fulfill Button (Triggers MySQL stock deduction) -->
+                <form action="{{ url_for('update_request_status', request_id=r.request_id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Fulfill request #{{ r.request_id }}? This will deduct {{ r.units_requested }} unit(s) of {{ r.blood_group_name }} from MySQL blood_stock.');">
+                  <input type="hidden" name="status" value="Fulfilled">
+                  <button type="submit" class="btn btn-sm btn-success" title="Fulfill and Deduct Stock">
+                    <i class="fa-solid fa-check me-1"></i> Fulfill
+                  </button>
+                </form>
+
+                {% if r.status == 'Pending' %}
+                <!-- Approve Button -->
+                <form action="{{ url_for('update_request_status', request_id=r.request_id) }}" method="POST" style="display:inline;">
+                  <input type="hidden" name="status" value="Approved">
+                  <button type="submit" class="btn btn-sm btn-outline-info" title="Approve Request">
+                    <i class="fa-solid fa-thumbs-up"></i>
+                  </button>
+                </form>
+
+                <!-- Reject Button -->
+                <form action="{{ url_for('update_request_status', request_id=r.request_id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Reject request #{{ r.request_id }}?');">
+                  <input type="hidden" name="status" value="Rejected">
+                  <button type="submit" class="btn btn-sm btn-outline-secondary" title="Reject Request">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                </form>
+                {% endif %}
+              </div>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="9" class="text-center py-5">
+            <div class="text-muted">
+              <i class="fa-solid fa-inbox fs-1 mb-3 text-secondary"></i>
+              <h6>No Blood Requests Found</h6>
+              <p class="small mb-2">No requisitions match your filter criteria.</p>
+              <a href="{{ url_for('requests_page') }}" class="btn btn-sm btn-outline-secondary">Clear Filter</a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL: Create Blood Request -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="modalAddRequest" tabindex="-1" aria-labelledby="modalAddRequestLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow">
+      <form action="{{ url_for('add_request') }}" method="POST">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title" id="modalAddRequestLabel"><i class="fa-solid fa-truck-medical me-2"></i>New Hospital Blood Requisition</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Patient Name <span class="text-danger">*</span></label>
+              <input type="text" name="patient_name" class="form-control" placeholder="e.g. Ramesh Patel" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Hospital Name <span class="text-danger">*</span></label>
+              <input type="text" name="hospital_name" class="form-control" placeholder="e.g. Max Super Speciality Hospital" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Blood Group Required <span class="text-danger">*</span></label>
+              <select name="blood_group_id" class="form-select" required>
+                <option value="" disabled selected>Select Blood Group</option>
+                {% for bg in blood_groups %}
+                <option value="{{ bg.id }}">{{ bg.blood_group_name }} ({{ bg.rh_factor }})</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Units Requested <span class="text-danger">*</span></label>
+              <input type="number" name="units_requested" class="form-control" value="1" min="1" max="10" required>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Request Date <span class="text-danger">*</span></label>
+              <input type="date" name="request_date" class="form-control" value="{{ today_date }}" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Clinical Reason / Surgical Procedure</label>
+              <input type="text" name="reason" class="form-control" placeholder="e.g. Emergency cardiac bypass surgery, severe anemia">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary"><i class="fa-solid fa-paper-plane me-1"></i>Submit Requisition</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

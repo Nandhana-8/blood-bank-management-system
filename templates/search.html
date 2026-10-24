@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}Search Blood & Compatibility - Blood Bank Management System{% endblock %}
+{% block page_heading %}Search Blood & Compatibility Finder{% endblock %}
+{% block page_subheading %}Check real-time inventory units, calculate transfusion compatibility, and locate emergency donors{% endblock %}
+
+{% block content %}
+<!-- Search & Filter Card -->
+<div class="card-panel" style="padding: 24px;">
+  <div style="max-width: 720px; margin: 0 auto;">
+    <h3 style="margin-bottom: 8px; color: var(--slate-900);">Clinical Blood Availability & Compatibility Tool</h3>
+    <p style="font-size: 13px; color: var(--slate-500); margin-bottom: 20px;">
+      Select the patient's blood type and demanded units to inspect live inventory and determine compatible donor/recipient pathways.
+    </p>
+
+    <div class="form-grid-2" style="align-items: flex-end;">
+      <div class="form-group" style="margin-bottom: 0;">
+        <label for="search-blood-group">Patient Blood Group *</label>
+        <select id="search-blood-group" class="form-select" onchange="checkCompatibility()">
+          <option value="">-- Select Blood Group --</option>
+          <option value="A+">A+ (Rh Positive)</option>
+          <option value="A-">A- (Rh Negative)</option>
+          <option value="B+">B+ (Rh Positive)</option>
+          <option value="B-">B- (Rh Negative)</option>
+          <option value="AB+">AB+ (Universal Recipient)</option>
+          <option value="AB-">AB- (Rare Rh Negative)</option>
+          <option value="O+">O+ (Common Donor)</option>
+          <option value="O-">O- (Universal Red Cell Donor)</option>
+        </select>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 0;">
+        <label for="search-units-needed">Units Required *</label>
+        <input type="number" id="search-units-needed" class="form-control" min="1" max="20" value="2" oninput="checkCompatibility()">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Dynamic Search Results Card (Revealed on selection) -->
+<div id="search-results-card" class="card-panel" style="display: none; border-left: 5px solid var(--primary);">
+  <div class="card-panel-header">
+    <div>
+      <span id="comp-group-title" class="blood-group-tag" style="font-size: 28px; margin-right: 12px;">--</span>
+      <span id="comp-badge-status" class="badge badge-blood">--</span>
+    </div>
+    <div id="comp-fulfillment" class="badge">--</div>
+  </div>
+
+  <div style="padding: 24px;">
+    <!-- Summary Grid -->
+    <div class="form-grid-3" style="margin-bottom: 24px;">
+      <div style="background-color: var(--slate-50); border: 1px solid var(--slate-200); border-radius: 8px; padding: 16px;">
+        <div style="font-size: 11px; text-transform: uppercase; color: var(--slate-500); font-weight: 700;">Live Blood Bank Stock</div>
+        <div id="comp-stock-avail" style="font-size: 20px; font-weight: 700; color: var(--slate-900); margin-top: 4px;">-- units</div>
+      </div>
+
+      <div style="background-color: var(--slate-50); border: 1px solid var(--slate-200); border-radius: 8px; padding: 16px;">
+        <div style="font-size: 11px; text-transform: uppercase; color: var(--slate-500); font-weight: 700;">Patient Can Receive From</div>
+        <div id="comp-can-receive" style="font-size: 15px; font-weight: 700; color: #16a34a; margin-top: 4px;">--</div>
+      </div>
+
+      <div style="background-color: var(--slate-50); border: 1px solid var(--slate-200); border-radius: 8px; padding: 16px;">
+        <div style="font-size: 11px; text-transform: uppercase; color: var(--slate-500); font-weight: 700;">Patient Can Donate To</div>
+        <div id="comp-can-donate" style="font-size: 15px; font-weight: 700; color: #0284c7; margin-top: 4px;">--</div>
+      </div>
+    </div>
+
+    <!-- Quick Action Shortcuts -->
+    <div style="display: flex; gap: 12px; align-items: center; border-top: 1px solid var(--slate-200); padding-top: 18px;">
+      <button class="btn btn-primary btn-sm" onclick="openModal('modal-add-request')">
+        Create Requisition for this Blood Group
+      </button>
+      <a href="{{ url_for('donors') }}" class="btn btn-secondary btn-sm">
+        View Matching Donors in Registry
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Stock Grid Reference -->
+<div class="card-panel">
+  <div class="card-panel-header">
+    <div class="card-panel-title">Current Live Reserves Snapshot (All Blood Groups)</div>
+  </div>
+  <div style="padding: 20px 24px;">
+    <div class="stock-grid">
+      {% for s in stock_list %}
+      <div class="stock-card" style="cursor: pointer;" onclick="document.getElementById('search-blood-group').value='{{ s.group_name }}'; checkCompatibility();">
+        <div class="blood-group-tag">{{ s.group_name }}</div>
+        <div class="stock-units-number">{{ s.total_units }}</div>
+        <div class="stock-units-label">Units Available</div>
+        <span class="stock-status-pill {% if s.total_units <= s.threshold_low %}status-low{% else %}status-adequate{% endif %}">
+          {{ s.total_units }} Units
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<script>
+  // Expose live stock data to Javascript compatibility calculator
+  window.STOCK_DATA = {
+    {% for s in stock_list %}
+    "{{ s.group_name }}": {{ s.total_units }},
+    {% endfor %}
+  };
+</script>
+{% endblock %}

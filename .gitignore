@@ -1,0 +1,49 @@
+# =============================================================================
+# Blood Bank Management System (BBMS) - Git Ignore Configuration
+# =============================================================================
+
+# Sensitive Environment Configurations & Credentials
+.env
+.env.local
+.env.*.local
+*.env
+!.env.example
+
+# Python Bytecode & Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Distribution & Build
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# IDEs & Text Editors
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+*.swp
+*.swo
+*~
+
+# Operating System Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary & Log Files
+*.log
+scratch/
+tmp/

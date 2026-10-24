@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Hospitals - Blood Bank Management System{% endblock %}
+{% block page_heading %}Partner Hospitals & Medical Centers{% endblock %}
+{% block page_subheading %}Manage recognized medical facilities, trauma centers, and contact coordination{% endblock %}
+
+{% block topbar_actions %}
+  <button class="btn btn-primary btn-sm" onclick="openModal('modal-add-hospital')">
+    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+    Add Partner Hospital
+  </button>
+{% endblock %}
+
+{% block content %}
+<div class="card-panel">
+  <div class="card-panel-header">
+    <div class="card-panel-title">Registered Hospitals ({{ hospitals|length }} centers)</div>
+    
+    <div class="filter-bar">
+      <div class="search-input-wrapper">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <input type="text" id="hospital-search-input" class="form-control" placeholder="Search hospital name or phone..." onkeyup="filterTable('hospital-search-input', 'hospitals-table')">
+      </div>
+
+      <button class="btn btn-secondary btn-sm" onclick="exportTableToCSV('hospitals-table', 'registered_hospitals.csv')">
+        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+        Export CSV
+      </button>
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="data-table" id="hospitals-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Hospital Name</th>
+          <th>State License #</th>
+          <th>Address</th>
+          <th>Contact Number</th>
+          <th>Official Email</th>
+          <th>Emergency Helpline</th>
+          <th>Requisitions Made</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for h in hospitals %}
+        <tr>
+          <td><strong>#{{ h.hospital_id }}</strong></td>
+          <td><strong>{{ h.hospital_name }}</strong></td>
+          <td><code>{{ h.license_number }}</code></td>
+          <td style="max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ h.address }}">{{ h.address }}</td>
+          <td>{{ h.contact_number }}</td>
+          <td>{{ h.email }}</td>
+          <td>
+            <span style="color:#b91c1c; font-weight:600;">{{ h.emergency_contact or 'N/A' }}</span>
+          </td>
+          <td>
+            <span class="badge badge-blood">{{ h.total_requests }} requests</span>
+          </td>
+          <td>
+            <div class="actions-cell">
+              <button class="btn btn-secondary btn-sm" onclick="openEditHospitalModal({{ h.hospital_id }})">Edit</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteHospital({{ h.hospital_id }}, '{{ h.hospital_name }}')">Delete</button>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="9" style="text-align: center; color: var(--slate-400); padding: 28px;">No partner hospitals registered yet.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal: Add Partner Hospital -->
+<div id="modal-add-hospital" class="modal-backdrop">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <div class="modal-title">Register Partner Hospital</div>
+      <button class="btn-close-modal" onclick="closeModal('modal-add-hospital')">&times;</button>
+    </div>
+    <form onsubmit="handleAddHospital(event)">
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Hospital / Clinic Name *</label>
+          <input type="text" name="hospital_name" class="form-control" placeholder="e.g. Grace Memorial Hospital" required>
+        </div>
+
+        <div class="form-group">
+          <label>Medical Board License Number *</label>
+          <input type="text" name="license_number" class="form-control" placeholder="e.g. HOSP-LIC-2026-99" required>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label>General Contact Number *</label>
+            <input type="tel" name="contact_number" class="form-control" placeholder="+1-555-0100" required>
+          </div>
+          <div class="form-group">
+            <label>24/7 Emergency Line</label>
+            <input type="tel" name="emergency_contact" class="form-control" placeholder="+1-555-9110">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Official Blood Bank Requisition Email *</label>
+          <input type="email" name="email" class="form-control" placeholder="bloodbank@hospital.org" required>
+        </div>
+
+        <div class="form-group">
+          <label>Hospital Physical Address *</label>
+          <textarea name="address" class="form-control" rows="2" placeholder="Street, district, city, zip code" required></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-add-hospital')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Hospital</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Edit Partner Hospital -->
+<div id="modal-edit-hospital" class="modal-backdrop">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <div class="modal-title">Update Hospital Details</div>
+      <button class="btn-close-modal" onclick="closeModal('modal-edit-hospital')">&times;</button>
+    </div>
+    <form onsubmit="handleUpdateHospital(event)">
+      <input type="hidden" id="edit-hospital-id" name="hospital_id">
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Hospital / Clinic Name *</label>
+          <input type="text" id="edit-hospital-name" name="hospital_name" class="form-control" required>
+        </div>
+
+        <div class="form-group">
+          <label>Medical Board License Number *</label>
+          <input type="text" id="edit-hospital-license" name="license_number" class="form-control" required>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label>General Contact Number *</label>
+            <input type="tel" id="edit-hospital-phone" name="contact_number" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label>24/7 Emergency Line</label>
+            <input type="tel" id="edit-hospital-emergency" name="emergency_contact" class="form-control">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Official Requisition Email *</label>
+          <input type="email" id="edit-hospital-email" name="email" class="form-control" required>
+        </div>
+
+        <div class="form-group">
+          <label>Hospital Physical Address *</label>
+          <textarea id="edit-hospital-address" name="address" class="form-control" rows="2" required></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-edit-hospital')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

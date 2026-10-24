@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+
+{% block title %}SQL Lab & Viva Demonstrator - Blood Bank Management System{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+  <div>
+    <h2 class="fw-bold mb-1 text-slate-900">
+      <i class="fa-solid fa-terminal text-info me-2"></i>SQL Lab & Viva Demonstrator
+    </h2>
+    <p class="text-muted mb-0">Execute live MySQL queries directly from the web interface &bull; Demonstrate all mandatory DBMS viva concepts</p>
+  </div>
+  <div class="d-flex gap-2">
+    <span class="badge bg-success-subtle text-success-emphasis border p-2">
+      <i class="fa-solid fa-database me-1"></i> Connected to: <code>{{ db_status.database }}</code> (MySQL v{{ db_status.version }})
+    </span>
+  </div>
+</div>
+
+<div class="row g-4 mb-4">
+  <!-- Left Column: Pre-configured Concept Buttons -->
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white py-3">
+        <h5 class="mb-0 fw-bold text-slate-900">
+          <i class="fa-solid fa-book-bookmark text-primary me-2"></i>Mandatory DBMS Concepts Menu
+        </h5>
+        <small class="text-muted">Click any concept to execute against MySQL and view real-time tabular output</small>
+      </div>
+      <div class="card-body p-3">
+        <div class="list-group list-group-flush gap-2">
+          
+          <!-- Concept 1: DQL -->
+          <form method="POST" action="{{ url_for('sql_lab') }}">
+            <input type="hidden" name="action" value="dql_young_donors">
+            <button type="submit" class="list-group-item list-group-item-action border rounded-3 p-3 text-start">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <strong class="text-dark"><i class="fa-solid fa-filter me-2 text-primary"></i>1. DQL: SELECT with WHERE, ORDER BY, LIMIT</strong>
+                <span class="badge bg-primary-subtle text-primary">DQL</span>
+              </div>
+              <small class="text-muted d-block">Filters donors younger than 30 sorted by age</small>
+            </button>
+          </form>
+
+          <!-- Concept 2: Aggregates -->
+          <form method="POST" action="{{ url_for('sql_lab') }}">
+            <input type="hidden" name="action" value="aggregate_metrics">
+            <button type="submit" class="list-group-item list-group-item-action border rounded-3 p-3 text-start">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <strong class="text-dark"><i class="fa-solid fa-calculator me-2 text-success"></i>2. Aggregates: COUNT, SUM, AVG, MIN, MAX</strong>
+                <span class="badge bg-success-subtle text-success">Aggregates</span>
+              </div>
+              <small class="text-muted d-block">Calculates stock totals, min/max units and averages</small>
+            </button>
+          </form>
+
+          <!-- Concept 3: Joins -->
+          <form method="POST" action="{{ url_for('sql_lab') }}">
+            <input type="hidden" name="action" value="inner_join_donations">
+            <button type="submit" class="list-group-item list-group-item-action border rounded-3 p-3 text-start">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <strong class="text-dark"><i class="fa-solid fa-link me-2 text-danger"></i>3. Joins: INNER JOIN Across 3 Tables</strong>
+                <span class="badge bg-danger-subtle text-danger">Joins</span>
+              </div>
+              <small class="text-muted d-block">Combines donations, donors, and blood groups</small>
+            </button>
+          </form>
+
+          <!-- Concept 4: Subquery -->
+          <form method="POST" action="{{ url_for('sql_lab') }}">
+            <input type="hidden" name="action" value="subquery_critical_donors">
+            <button type="submit" class="list-group-item list-group-item-action border rounded-3 p-3 text-start">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <strong class="text-dark"><i class="fa-solid fa-diagram-project me-2 text-warning"></i>4. Subquery in WHERE clause</strong>
+                <span class="badge bg-warning-subtle text-warning-emphasis">Subquery</span>
+              </div>
+              <small class="text-muted d-block">Matches donors belonging to low-stock blood groups (&lt; 10)</small>
+            </button>
+          </form>
+
+          <!-- Concept 5: GROUP BY & HAVING -->
+          <form method="POST" action="{{ url_for('sql_lab') }}">
+            <input type="hidden" name="action" value="group_by_having">
+            <button type="submit" class="list-group-item list-group-item-action border rounded-3 p-3 text-start">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <strong class="text-dark"><i class="fa-solid fa-chart-pie me-2 text-info"></i>5. GROUP BY with HAVING clause</strong>
+                <span class="badge bg-info-subtle text-info-emphasis">GROUP BY</span>
+              </div>
+              <small class="text-muted d-block">Groups donations by blood group with <code>HAVING COUNT(*) &gt;= 1</code></small>
+            </button>
+          </form>
+
+          <!-- Concept 6: Views -->
+          <form method="POST" action="{{ url_for('sql_lab') }}">
+            <input type="hidden" name="action" value="view_blood_stock">
+            <button type="submit" class="list-group-item list-group-item-action border rounded-3 p-3 text-start">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <strong class="text-dark"><i class="fa-solid fa-table me-2 text-secondary"></i>6. Database Views: blood_stock_view</strong>
+                <span class="badge bg-secondary-subtle text-secondary">Views</span>
+              </div>
+              <small class="text-muted d-block">Queries the abstracted <code>blood_stock_view</code> object</small>
+            </button>
+          </form>
+
+          <!-- Concept 7: Stored Function -->
+          <form method="POST" action="{{ url_for('sql_lab') }}">
+            <input type="hidden" name="action" value="function_get_units">
+            <button type="submit" class="list-group-item list-group-item-action border rounded-3 p-3 text-start">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <strong class="text-dark"><i class="fa-solid fa-code me-2 text-dark"></i>7. Stored Function: fn_get_available_units()</strong>
+                <span class="badge bg-dark text-white">Functions</span>
+              </div>
+              <small class="text-muted d-block">Invokes MySQL stored functions in a SELECT statement</small>
+            </button>
+          </form>
+
+          <!-- Concept 8: Cursor Stored Procedure -->
+          <a href="{{ url_for('stock_cursor_audit') }}" class="list-group-item list-group-item-action border rounded-3 p-3 text-start">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <strong class="text-dark"><i class="fa-solid fa-microchip me-2 text-primary"></i>8. Cursor Stored Procedure: sp_blood_stock_audit_cursor</strong>
+              <span class="badge bg-primary text-white">Cursor</span>
+            </div>
+            <small class="text-muted d-block">Iterates row-by-row through blood groups to audit thresholds</small>
+          </a>
+
+          <!-- Concept 9: Triggers Inspection -->
+          <form method="POST" action="{{ url_for('sql_lab') }}">
+            <input type="hidden" name="action" value="show_triggers">
+            <button type="submit" class="list-group-item list-group-item-action border rounded-3 p-3 text-start">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <strong class="text-dark"><i class="fa-solid fa-bolt me-2 text-warning"></i>9. Database Triggers: SHOW TRIGGERS</strong>
+                <span class="badge bg-warning text-dark">Triggers</span>
+              </div>
+              <small class="text-muted d-block">Inspects automated triggers registered in MySQL</small>
+            </button>
+          </form>
+
+          <!-- Concept 10: Stored Procedures Inspection -->
+          <form method="POST" action="{{ url_for('sql_lab') }}">
+            <input type="hidden" name="action" value="show_procedures">
+            <button type="submit" class="list-group-item list-group-item-action border rounded-3 p-3 text-start">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <strong class="text-dark"><i class="fa-solid fa-gears me-2 text-secondary"></i>10. Stored Procedures: SHOW PROCEDURE STATUS</strong>
+                <span class="badge bg-secondary text-white">Procedures</span>
+              </div>
+              <small class="text-muted d-block">Inspects stored procedures created in blood_bank_db</small>
+            </button>
+          </form>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Column: Query Terminal & Result Viewer -->
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-bold text-slate-900">
+          <i class="fa-solid fa-terminal text-dark me-2"></i>SQL Execution Console
+        </h5>
+        <span class="badge bg-info-subtle text-info-emphasis">Live Execution</span>
+      </div>
+      <div class="card-body p-3">
+        <form method="POST" action="{{ url_for('sql_lab') }}">
+          <div class="mb-3">
+            <label class="form-label fw-semibold small text-muted text-uppercase">SQL Statement to Execute</label>
+            <textarea name="custom_sql" class="form-control font-monospace" rows="4" style="background:#0f172a; color:#38bdf8; font-size:14px;">{{ query_sql or "SELECT id, full_name, age, gender, contact, city FROM donors ORDER BY id ASC LIMIT 5;" }}</textarea>
+            <div class="form-text">Type any custom SELECT, SHOW, DESCRIBE, or CALL query to test against MySQL.</div>
+          </div>
+          <div class="d-flex justify-content-between align-items-center">
+            <button type="submit" class="btn btn-dark">
+              <i class="fa-solid fa-play me-1 text-success"></i> Run Query in MySQL
+            </button>
+            <span class="small text-muted">Direct output from <code>mysql-connector-python</code></span>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Output Result Section -->
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <div>
+          <h5 class="mb-0 fw-bold text-slate-900">
+            <i class="fa-solid fa-table-cells text-success me-2"></i>MySQL Query Output
+          </h5>
+          {% if selected_query_title %}
+            <small class="text-primary fw-semibold">{{ selected_query_title }}</small>
+          {% endif %}
+        </div>
+        {% if query_result is not none %}
+          <span class="badge bg-success rounded-pill">{{ query_result|length }} rows returned</span>
+        {% endif %}
+      </div>
+      <div class="card-body p-0">
+        {% if error_message %}
+          <div class="p-4">
+            <div class="alert alert-danger mb-0">
+              <i class="fa-solid fa-triangle-exclamation me-2"></i>
+              <strong>MySQL Execution Error:</strong> {{ error_message }}
+            </div>
+          </div>
+        {% elif query_result is not none and query_result|length > 0 %}
+          <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
+            <table class="table table-bordered table-hover align-middle mb-0 font-monospace small">
+              <thead class="table-dark sticky-top">
+                <tr>
+                  {% for key in query_result[0].keys() %}
+                  <th>{{ key }}</th>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in query_result %}
+                <tr>
+                  {% for val in row.values() %}
+                  <td>{{ val if val is not none else 'NULL' }}</td>
+                  {% endfor %}
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% elif query_result is not none and query_result|length == 0 %}
+          <div class="text-center py-5 text-muted">
+            <i class="fa-solid fa-circle-check fs-2 mb-2 text-success"></i>
+            <p class="mb-0">Query executed successfully. 0 rows returned.</p>
+          </div>
+        {% else %}
+          <div class="text-center py-5 text-muted">
+            <i class="fa-solid fa-circle-play fs-1 mb-2 text-secondary"></i>
+            <p class="mb-1 fw-semibold">Ready to run MySQL queries</p>
+            <p class="small text-muted">Click any concept on the left or type a custom query above.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

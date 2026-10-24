@@ -1,0 +1,421 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Blood Bank Management System{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+  <div>
+    <h2 class="fw-bold mb-1 text-slate-900">
+      <i class="fa-solid fa-chart-line text-danger me-2"></i>Executive Blood Bank Dashboard
+    </h2>
+    <p class="text-muted mb-0">Live MySQL Synchronization &bull; Inventory Levels &bull; Activity Log</p>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <button class="btn btn-outline-danger shadow-sm" data-bs-toggle="modal" data-bs-target="#modalAddDonor">
+      <i class="fa-solid fa-user-plus me-1"></i> Add Donor
+    </button>
+    <button class="btn btn-danger shadow-sm" data-bs-toggle="modal" data-bs-target="#modalAddDonation">
+      <i class="fa-solid fa-hand-holding-droplet me-1"></i> Record Donation
+    </button>
+    <button class="btn btn-outline-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#modalAddRequest">
+      <i class="fa-solid fa-truck-medical me-1"></i> New Request
+    </button>
+  </div>
+</div>
+
+<!-- 4 Key Metric KPI Cards -->
+<div class="row g-3 mb-4">
+  <!-- Card 1: Total Donors -->
+  <div class="col-sm-6 col-xl-3">
+    <div class="card kpi-card h-100 border-0 shadow-sm">
+      <div class="card-body d-flex align-items-center">
+        <div class="kpi-icon bg-danger-subtle text-danger me-3">
+          <i class="fa-solid fa-users fs-3"></i>
+        </div>
+        <div>
+          <div class="text-uppercase text-muted small fw-semibold">Total Donors</div>
+          <div class="fs-2 fw-bold text-slate-900">{{ stats.total_donors }}</div>
+          <div class="small text-success"><i class="fa-solid fa-check-circle me-1"></i>Registered Donors</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 2: Total Units in Stock -->
+  <div class="col-sm-6 col-xl-3">
+    <div class="card kpi-card h-100 border-0 shadow-sm">
+      <div class="card-body d-flex align-items-center">
+        <div class="kpi-icon bg-success-subtle text-success me-3">
+          <i class="fa-solid fa-droplet fs-3"></i>
+        </div>
+        <div>
+          <div class="text-uppercase text-muted small fw-semibold">Total Blood Units</div>
+          <div class="fs-2 fw-bold text-slate-900">{{ stats.total_units }}</div>
+          <div class="small text-muted">Across all blood groups</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 3: Available Blood Groups -->
+  <div class="col-sm-6 col-xl-3">
+    <div class="card kpi-card h-100 border-0 shadow-sm">
+      <div class="card-body d-flex align-items-center">
+        <div class="kpi-icon bg-primary-subtle text-primary me-3">
+          <i class="fa-solid fa-layer-group fs-3"></i>
+        </div>
+        <div>
+          <div class="text-uppercase text-muted small fw-semibold">Available Groups</div>
+          <div class="fs-2 fw-bold text-slate-900">{{ stats.available_groups_count }} / {{ stock_summary|length }}</div>
+          <div class="small text-muted">Groups with stock &gt; 0</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 4: Blood Requests -->
+  <div class="col-sm-6 col-xl-3">
+    <div class="card kpi-card h-100 border-0 shadow-sm">
+      <div class="card-body d-flex align-items-center">
+        <div class="kpi-icon bg-warning-subtle text-warning me-3">
+          <i class="fa-solid fa-clipboard-list fs-3"></i>
+        </div>
+        <div>
+          <div class="text-uppercase text-muted small fw-semibold">Pending Requests</div>
+          <div class="fs-2 fw-bold text-slate-900">{{ stats.pending_requests }}</div>
+          <div class="small text-muted">{{ stats.total_requests }} total hospital requests</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Blood Stock Inventory Summary by Blood Group -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+    <h5 class="mb-0 fw-bold text-slate-900">
+      <i class="fa-solid fa-cubes-stacked text-danger me-2"></i>Live Blood Stock Levels by Blood Group
+    </h5>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('stock_cursor_audit') }}" class="btn btn-sm btn-outline-dark">
+        <i class="fa-solid fa-arrows-spin me-1"></i> Run MySQL Cursor Audit
+      </a>
+      <a href="{{ url_for('stock') }}" class="btn btn-sm btn-outline-danger">
+        Manage Stock &rarr;
+      </a>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="row g-3">
+      {% for s in stock_summary %}
+      <div class="col-6 col-sm-4 col-md-3 col-xl-2">
+        <div class="stock-badge-card p-3 text-center rounded-3 border {% if s.available_units < 5 %}border-danger bg-danger-subtle{% elif s.available_units <= 15 %}border-warning-subtle bg-warning-subtle{% else %}border-success-subtle bg-light{% endif %} shadow-sm">
+          <div class="blood-group-circle mb-2 mx-auto">
+            {{ s.blood_group_name }}
+          </div>
+          <div class="fs-3 fw-bold text-dark">{{ s.available_units }}</div>
+          <div class="small text-muted mb-2">Units Available</div>
+          <span class="badge {% if s.stock_status == 'Critical' %}bg-danger{% elif s.stock_status == 'Moderate' %}bg-warning text-dark{% else %}bg-success{% endif %} rounded-pill">
+            {{ s.stock_status }}
+          </span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- 2-Column Split: Recent Donations & Recent Blood Requests -->
+<div class="row g-4 mb-4">
+  <!-- Recent Blood Donations -->
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-bold text-slate-900">
+          <i class="fa-solid fa-hand-holding-medical text-danger me-2"></i>Recent Blood Donations
+        </h5>
+        <a href="{{ url_for('donations') }}" class="btn btn-sm btn-outline-secondary">View All</a>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Donor</th>
+              <th>Group</th>
+              <th>Units</th>
+              <th>Date</th>
+              <th>Hemoglobin</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in recent_donations %}
+            <tr>
+              <td>
+                <div class="fw-semibold text-dark">{{ d.donor_name }}</div>
+                <small class="text-muted">{{ d.donor_contact }}</small>
+              </td>
+              <td>
+                <span class="badge bg-danger rounded-pill">{{ d.blood_group_name }}</span>
+              </td>
+              <td><strong>{{ d.units }}</strong></td>
+              <td><small class="text-muted">{{ d.donation_date }}</small></td>
+              <td>
+                {% if d.hemoglobin_level %}
+                  <span class="badge bg-light text-dark border">{{ d.hemoglobin_level }} g/dL</span>
+                {% else %}
+                  <span class="text-muted">&mdash;</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="5" class="text-center py-4 text-muted">No donations recorded yet.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Blood Requests -->
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-bold text-slate-900">
+          <i class="fa-solid fa-truck-medical text-primary me-2"></i>Recent Blood Requests
+        </h5>
+        <a href="{{ url_for('requests_page') }}" class="btn btn-sm btn-outline-secondary">View All</a>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Patient & Hospital</th>
+              <th>Group</th>
+              <th>Units</th>
+              <th>Status</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in recent_requests %}
+            <tr>
+              <td>
+                <div class="fw-semibold text-dark">{{ r.patient_name }}</div>
+                <small class="text-muted">{{ r.hospital_name }}</small>
+              </td>
+              <td>
+                <span class="badge bg-danger rounded-pill">{{ r.blood_group_name }}</span>
+              </td>
+              <td><strong>{{ r.units_requested }}</strong></td>
+              <td>
+                {% if r.status == 'Fulfilled' %}
+                  <span class="badge bg-success rounded-pill">Fulfilled</span>
+                {% elif r.status == 'Approved' %}
+                  <span class="badge bg-info text-dark rounded-pill">Approved</span>
+                {% elif r.status == 'Rejected' %}
+                  <span class="badge bg-secondary rounded-pill">Rejected</span>
+                {% else %}
+                  <span class="badge bg-warning text-dark rounded-pill">Pending</span>
+                {% endif %}
+              </td>
+              <td><small class="text-muted">{{ r.request_date }}</small></td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="5" class="text-center py-4 text-muted">No requests recorded yet.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL: Add New Donor -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="modalAddDonor" tabindex="-1" aria-labelledby="modalAddDonorLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow">
+      <form action="{{ url_for('add_donor') }}" method="POST">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title" id="modalAddDonorLabel"><i class="fa-solid fa-user-plus me-2"></i>Register New Blood Donor</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Full Name <span class="text-danger">*</span></label>
+              <input type="text" name="full_name" class="form-control" placeholder="e.g. Rahul Sharma" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Blood Group <span class="text-danger">*</span></label>
+              <select name="blood_group_id" class="form-select" required>
+                <option value="" disabled selected>Select Blood Group</option>
+                {% for bg in blood_groups %}
+                <option value="{{ bg.id }}">{{ bg.blood_group_name }} ({{ bg.rh_factor }})</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Age (18 - 65) <span class="text-danger">*</span></label>
+              <input type="number" name="age" class="form-control" min="18" max="65" placeholder="e.g. 26" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Gender <span class="text-danger">*</span></label>
+              <select name="gender" class="form-select" required>
+                <option value="" disabled selected>Select Gender</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Contact Number <span class="text-danger">*</span></label>
+              <input type="text" name="contact" class="form-control" placeholder="e.g. 9876543210" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Email Address</label>
+              <input type="email" name="email" class="form-control" placeholder="e.g. donor@example.com">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">City</label>
+              <input type="text" name="city" class="form-control" placeholder="e.g. Mumbai">
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Address</label>
+              <input type="text" name="address" class="form-control" placeholder="Street / Apartment address">
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Remarks / Medical History</label>
+              <input type="text" name="remarks" class="form-control" placeholder="Voluntary donor, no medical conditions">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger"><i class="fa-solid fa-save me-1"></i>Save Donor to MySQL</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL: Record Blood Donation -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="modalAddDonation" tabindex="-1" aria-labelledby="modalAddDonationLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow">
+      <form action="{{ url_for('add_donation') }}" method="POST">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title" id="modalAddDonationLabel"><i class="fa-solid fa-hand-holding-medical me-2"></i>Record New Blood Donation</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="alert alert-info py-2 small d-flex align-items-center">
+            <i class="fa-solid fa-circle-info fs-5 me-2"></i>
+            <div><strong>Automatic MySQL Trigger Sync:</strong> Recording a donation automatically increments the corresponding blood stock in MySQL and updates the donor's last donation date.</div>
+          </div>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Select Registered Donor <span class="text-danger">*</span></label>
+              <select name="donor_id" class="form-select" required>
+                <option value="" disabled selected>Choose Donor...</option>
+                {% for d in donors_list %}
+                <option value="{{ d.id }}">{{ d.full_name }} (ID #{{ d.id }})</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Donation Date <span class="text-danger">*</span></label>
+              <input type="date" name="donation_date" class="form-control" value="{{ today_date }}" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Units Donated <span class="text-danger">*</span></label>
+              <input type="number" name="units" class="form-control" value="1" min="1" max="3" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Hemoglobin Level (g/dL)</label>
+              <input type="number" step="0.1" name="hemoglobin_level" class="form-control" placeholder="e.g. 13.5" min="12.0">
+              <div class="form-text">Must be &ge; 12.0 g/dL</div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Blood Pressure</label>
+              <input type="text" name="blood_pressure" class="form-control" placeholder="e.g. 120/80">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Pulse Rate (bpm)</label>
+              <input type="number" name="pulse_rate" class="form-control" placeholder="e.g. 72">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Notes / Camp Location</label>
+              <input type="text" name="notes" class="form-control" placeholder="e.g. Voluntary blood drive at City Camp">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger"><i class="fa-solid fa-check me-1"></i>Commit Donation & Update Stock</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL: Create Blood Request -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="modalAddRequest" tabindex="-1" aria-labelledby="modalAddRequestLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow">
+      <form action="{{ url_for('add_request') }}" method="POST">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title" id="modalAddRequestLabel"><i class="fa-solid fa-truck-medical me-2"></i>Create Blood Requisition</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Patient Name <span class="text-danger">*</span></label>
+              <input type="text" name="patient_name" class="form-control" placeholder="e.g. Sumanth Rao" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Hospital Name <span class="text-danger">*</span></label>
+              <input type="text" name="hospital_name" class="form-control" placeholder="e.g. Apollo Lifeline Hospital" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Blood Group Required <span class="text-danger">*</span></label>
+              <select name="blood_group_id" class="form-select" required>
+                <option value="" disabled selected>Select Blood Group</option>
+                {% for bg in blood_groups %}
+                <option value="{{ bg.id }}">{{ bg.blood_group_name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Units Requested <span class="text-danger">*</span></label>
+              <input type="number" name="units_requested" class="form-control" value="1" min="1" max="10" required>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Request Date <span class="text-danger">*</span></label>
+              <input type="date" name="request_date" class="form-control" value="{{ today_date }}" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Clinical Reason / Diagnosis</label>
+              <input type="text" name="reason" class="form-control" placeholder="e.g. Emergency surgery, trauma blood loss">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary"><i class="fa-solid fa-paper-plane me-1"></i>Submit Requisition</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

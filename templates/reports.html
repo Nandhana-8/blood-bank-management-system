@@ -1,0 +1,340 @@
+{% extends "base.html" %}
+
+{% block title %}Reports & Audits - Blood Bank Management System{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+  <div>
+    <h2 class="fw-bold mb-1 text-slate-900">
+      <i class="fa-solid fa-file-invoice text-danger me-2"></i>Comprehensive Blood Bank Reports
+    </h2>
+    <p class="text-muted mb-0">Audited inventories, donor registers, donation ledgers & statistical DBMS aggregations</p>
+  </div>
+  <div class="d-flex gap-2">
+    <button class="btn btn-outline-secondary shadow-sm" onclick="window.print()">
+      <i class="fa-solid fa-print me-1"></i> Print Report
+    </button>
+  </div>
+</div>
+
+<!-- High-Level KPI Summary -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-xl-3">
+    <div class="card border-0 shadow-sm p-3 d-flex flex-row align-items-center">
+      <div class="p-3 bg-danger-subtle text-danger rounded-3 me-3 fs-3">
+        <i class="fa-solid fa-users"></i>
+      </div>
+      <div>
+        <div class="text-muted small text-uppercase fw-semibold">Registered Donors</div>
+        <div class="fs-2 fw-bold text-dark">{{ summary_kpi.total_donors }}</div>
+        <div class="small text-muted">Active in database</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="card border-0 shadow-sm p-3 d-flex flex-row align-items-center">
+      <div class="p-3 bg-success-subtle text-success rounded-3 me-3 fs-3">
+        <i class="fa-solid fa-droplet"></i>
+      </div>
+      <div>
+        <div class="text-muted small text-uppercase fw-semibold">Blood Units In Stock</div>
+        <div class="fs-2 fw-bold text-dark">{{ summary_kpi.total_units }}</div>
+        <div class="small text-muted">Across all groups</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="card border-0 shadow-sm p-3 d-flex flex-row align-items-center">
+      <div class="p-3 bg-primary-subtle text-primary rounded-3 me-3 fs-3">
+        <i class="fa-solid fa-hand-holding-medical"></i>
+      </div>
+      <div>
+        <div class="text-muted small text-uppercase fw-semibold">Donations Recorded</div>
+        <div class="fs-2 fw-bold text-dark">{{ summary_kpi.total_donations }}</div>
+        <div class="small text-muted">Lifetime collections</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="card border-0 shadow-sm p-3 d-flex flex-row align-items-center">
+      <div class="p-3 bg-info-subtle text-info rounded-3 me-3 fs-3">
+        <i class="fa-solid fa-circle-check"></i>
+      </div>
+      <div>
+        <div class="text-muted small text-uppercase fw-semibold">Requests Fulfilled</div>
+        <div class="fs-2 fw-bold text-dark">{{ summary_kpi.total_fulfilled }}</div>
+        <div class="small text-muted">Completed requisitions</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tabbed Report Navigation -->
+<ul class="nav nav-pills mb-4 gap-2 bg-white p-2 rounded shadow-sm" id="reportTabs" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active fw-semibold" id="tab-stock-btn" data-bs-toggle="pill" data-bs-target="#tab-stock" type="button" role="tab">
+      <i class="fa-solid fa-cubes-stacked me-1"></i> Blood Stock Inventory
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link fw-semibold" id="tab-donors-btn" data-bs-toggle="pill" data-bs-target="#tab-donors" type="button" role="tab">
+      <i class="fa-solid fa-users me-1"></i> Donor Register
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link fw-semibold" id="tab-donations-btn" data-bs-toggle="pill" data-bs-target="#tab-donations" type="button" role="tab">
+      <i class="fa-solid fa-hand-holding-droplet me-1"></i> Donation History
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link fw-semibold" id="tab-requests-btn" data-bs-toggle="pill" data-bs-target="#tab-requests" type="button" role="tab">
+      <i class="fa-solid fa-truck-medical me-1"></i> Blood Requisitions
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link fw-semibold" id="tab-analytics-btn" data-bs-toggle="pill" data-bs-target="#tab-analytics" type="button" role="tab">
+      <i class="fa-solid fa-chart-pie me-1"></i> DBMS Analytics (GROUP BY)
+    </button>
+  </li>
+</ul>
+
+<div class="tab-content" id="reportTabContent">
+
+  <!-- TAB 1: Blood Stock Inventory Report -->
+  <div class="tab-pane fade show active" id="tab-stock" role="tabpanel">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <div>
+          <h5 class="mb-0 fw-bold text-slate-900">
+            <i class="fa-solid fa-boxes-stacked text-danger me-2"></i>Blood Stock Inventory Audit
+          </h5>
+          <small class="text-muted">Calculated via Stored Function: <code>fn_get_available_units(group_id)</code></small>
+        </div>
+        <button class="btn btn-sm btn-outline-success" onclick="exportTableToCSV('report-stock-table', 'stock_inventory_report.csv')">
+          <i class="fa-solid fa-file-csv me-1"></i> Export CSV
+        </button>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" id="report-stock-table">
+          <thead class="table-light">
+            <tr>
+              <th>ID</th>
+              <th>Blood Group</th>
+              <th>Rh Factor</th>
+              <th>Available Units</th>
+              <th>Inventory Status</th>
+              <th>Total Donations Logged</th>
+              <th>Lifetime Collected Units</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in stock_report %}
+            <tr>
+              <td><strong>#{{ s.id }}</strong></td>
+              <td><span class="badge bg-danger rounded-pill px-3 py-1 fs-6">{{ s.blood_group_name }}</span></td>
+              <td>{{ s.rh_factor }}</td>
+              <td><strong class="fs-5">{{ s.available_units }}</strong> units</td>
+              <td>
+                <span class="badge {% if s.status_label == 'CRITICAL' %}bg-danger{% elif s.status_label == 'MODERATE' %}bg-warning text-dark{% else %}bg-success{% endif %} rounded-pill px-3">
+                  {{ s.status_label }}
+                </span>
+              </td>
+              <td>{{ s.total_donations_count }}</td>
+              <td><strong>{{ s.lifetime_collected_units }}</strong> units</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 2: Donor Register Report -->
+  <div class="tab-pane fade" id="tab-donors" role="tabpanel">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <div>
+          <h5 class="mb-0 fw-bold text-slate-900">
+            <i class="fa-solid fa-address-book text-danger me-2"></i>Complete Voluntary Donors Register
+          </h5>
+          <small class="text-muted">Source: <code>donor_details_view</code> (Inner joined with blood_groups & aggregated donations)</small>
+        </div>
+        <button class="btn btn-sm btn-outline-success" onclick="exportTableToCSV('report-donors-table', 'donors_register_report.csv')">
+          <i class="fa-solid fa-file-csv me-1"></i> Export CSV
+        </button>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" id="report-donors-table">
+          <thead class="table-light">
+            <tr>
+              <th>ID</th>
+              <th>Full Name</th>
+              <th>Blood Group</th>
+              <th>Age / Gender</th>
+              <th>Contact Phone</th>
+              <th>Email</th>
+              <th>City</th>
+              <th>Last Donation</th>
+              <th>Total Donated</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in donor_report %}
+            <tr>
+              <td>#{{ d.donor_id }}</td>
+              <td><strong>{{ d.full_name }}</strong></td>
+              <td><span class="badge bg-danger rounded-pill">{{ d.blood_group_name }}</span></td>
+              <td>{{ d.age }} / {{ d.gender }}</td>
+              <td>{{ d.contact }}</td>
+              <td><small class="text-muted">{{ d.email or 'N/A' }}</small></td>
+              <td>{{ d.city or 'N/A' }}</td>
+              <td>{{ d.last_donation_date or 'None' }}</td>
+              <td>
+                <span class="badge bg-info-subtle text-info-emphasis rounded-pill">
+                  {{ d.total_donations }} donation(s) ({{ d.total_units_donated }} units)
+                </span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 3: Donation History Report -->
+  <div class="tab-pane fade" id="tab-donations" role="tabpanel">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <div>
+          <h5 class="mb-0 fw-bold text-slate-900">
+            <i class="fa-solid fa-hand-holding-medical text-danger me-2"></i>Chronological Donation History
+          </h5>
+          <small class="text-muted">Source: <code>donation_history_view</code></small>
+        </div>
+        <button class="btn btn-sm btn-outline-success" onclick="exportTableToCSV('report-donations-table', 'donations_ledger_report.csv')">
+          <i class="fa-solid fa-file-csv me-1"></i> Export CSV
+        </button>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" id="report-donations-table">
+          <thead class="table-light">
+            <tr>
+              <th>ID</th>
+              <th>Donor Name</th>
+              <th>Blood Group</th>
+              <th>Units</th>
+              <th>Date</th>
+              <th>Hemoglobin</th>
+              <th>BP</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for dn in donation_report %}
+            <tr>
+              <td>#{{ dn.donation_id }}</td>
+              <td><strong>{{ dn.donor_name }}</strong></td>
+              <td><span class="badge bg-danger rounded-pill">{{ dn.blood_group_name }}</span></td>
+              <td><strong>{{ dn.units }}</strong></td>
+              <td>{{ dn.donation_date }}</td>
+              <td>{{ dn.hemoglobin_level or 'N/A' }} g/dL</td>
+              <td>{{ dn.blood_pressure or 'N/A' }}</td>
+              <td><small class="text-muted">{{ dn.notes or 'Routine voluntary donation' }}</small></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 4: Blood Requests Report -->
+  <div class="tab-pane fade" id="tab-requests" role="tabpanel">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <div>
+          <h5 class="mb-0 fw-bold text-slate-900">
+            <i class="fa-solid fa-truck-medical text-primary me-2"></i>Hospital Blood Requisitions Log
+          </h5>
+          <small class="text-muted">Source: <code>blood_requests_view</code></small>
+        </div>
+        <button class="btn btn-sm btn-outline-success" onclick="exportTableToCSV('report-requests-table', 'blood_requests_report.csv')">
+          <i class="fa-solid fa-file-csv me-1"></i> Export CSV
+        </button>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" id="report-requests-table">
+          <thead class="table-light">
+            <tr>
+              <th>ID</th>
+              <th>Patient</th>
+              <th>Hospital</th>
+              <th>Blood Group</th>
+              <th>Units Needed</th>
+              <th>Status</th>
+              <th>Request Date</th>
+              <th>Fulfilled Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in request_report %}
+            <tr>
+              <td>#{{ r.request_id }}</td>
+              <td><strong>{{ r.patient_name }}</strong></td>
+              <td>{{ r.hospital_name }}</td>
+              <td><span class="badge bg-danger rounded-pill">{{ r.blood_group_name }}</span></td>
+              <td>{{ r.units_requested }}</td>
+              <td>
+                <span class="badge {% if r.status == 'Fulfilled' %}bg-success{% elif r.status == 'Approved' %}bg-info text-dark{% elif r.status == 'Rejected' %}bg-secondary{% else %}bg-warning text-dark{% endif %} rounded-pill">
+                  {{ r.status }}
+                </span>
+              </td>
+              <td>{{ r.request_date }}</td>
+              <td>{{ r.fulfilled_date or '&mdash;'|safe }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 5: DBMS Analytical Aggregations -->
+  <div class="tab-pane fade" id="tab-analytics" role="tabpanel">
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3">
+        <h5 class="mb-0 fw-bold text-slate-900">
+          <i class="fa-solid fa-chart-column text-danger me-2"></i>SQL Aggregation: Donors Grouped by City (GROUP BY with HAVING)
+        </h5>
+        <small class="text-muted">Demonstrates: <code>GROUP BY city HAVING COUNT(*) &gt;= 1</code> with <code>GROUP_CONCAT()</code></small>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>City</th>
+              <th>Registered Donors Count</th>
+              <th>Blood Groups Present</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in city_stats %}
+            <tr>
+              <td><strong>{{ c.city }}</strong></td>
+              <td>
+                <span class="badge bg-primary rounded-pill px-3 fs-6">{{ c.donor_count }} donor(s)</span>
+              </td>
+              <td>
+                <span class="badge bg-light text-dark border">{{ c.available_groups }}</span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
