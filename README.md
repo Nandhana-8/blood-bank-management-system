@@ -407,10 +407,10 @@ python test_app.py
 
 ## 👥 Team Members
 
-| Name | Role | GitHub Username |
+| Name | Role | GitHub Profile |
 | :--- | :--- | :--- |
-| **Nandhana Vinod** | Project Lead & Full-Stack Developer | `[GitHub Profile]` |
-| *[Teammate Name]* | Collaborator & Database Developer | `[GitHub Username]` |
+| **Nandhana Vinod** | Project Lead & Full-Stack Developer | [@Nandhana-8](https://github.com/Nandhana-8) |
+| **Nishita Devi** | Collaborator & Database Developer | [@nishitadevi17842-hub](https://github.com/nishitadevi17842-hub) |
 
 ---
 
